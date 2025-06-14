@@ -20,7 +20,7 @@
 #define DHTPIN1 25
 #define DHTPIN2 26
 #define DHTTYPE DHT22
-#define WIFI_SSID "FlebinHome"
+#define WIFI_SSID "FlebinHome1"
 #define WIFI_PASSWORD "9820089048"
 #define API_KEY "AIzaSyCZsHJnSoTnZQkTK_ia2ZBD-ZEoJW09thM"
 #define DATABASE_URL "smartenergycontrolsystem-default-rtdb.firebaseio.com"
@@ -193,7 +193,13 @@ Firebase.RTDB.setString(&fbdo, "/Data/SystemSTS", "In Active");
     delay(200);  // Pause after second beep
 
   }
+if (!WL_CONNECTED){
+  digitalWrite(LED_PIN,LOW);
+}
+else{
+  digitalWrite(LED_PIN,HIGH);
 
+}
 }
 
 // void handleAcControl() {

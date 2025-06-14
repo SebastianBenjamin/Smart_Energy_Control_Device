@@ -10,6 +10,15 @@
 #include <LiquidCrystal_I2C.h>
 #include <NewPing.h>
 
+#include <HardwareSerial.h>
+
+// Define RX and TX pins for Bluetooth (HC-05/HC-06)
+#define BT_RX_PIN 16  // GPIO 16 (RX)
+#define BT_TX_PIN 17  // GPIO 17 (TX)
+
+// Bluetooth Serial
+HardwareSerial BTSerial(2); // Serial2 for Bluetooth
+
 // Pin and Wi-Fi settings
 #define TRIG_PIN1 5
 #define ECHO_PIN1 4
@@ -52,11 +61,14 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 int maxCapacity = 50;
 double minTemp = .0;
 double maxTemp = 24.0;
+  double temp2=0.0;
+    double humidity2=0.0;
 int lastCount = -1;
 int currentCount = 0;
 bool updatedToOne = false;
 bool updatedToZero = false;
 bool s1Triggered = false;
+String movement = "";
 bool s2Triggered = false;
 int acTemp = 0;
 unsigned long lastWifiCheck = 0;
@@ -173,13 +185,13 @@ void resetFirebaseNodes() {
 }
 
 void setup() {
-    Serial.begin(115200);
+    Serial.begin(9600);
     pinMode(BUZZER_PIN, OUTPUT);
     pinMode(LED_PIN, OUTPUT);
     
     dht1.begin();
-    dht2.begin();
     
+    BTSerial.begin(9600, SERIAL_8N1, BT_RX_PIN, BT_TX_PIN);
     lcd.init();
     lcd.backlight();
     lcd.setCursor(0, 0);
@@ -269,6 +281,35 @@ void updateFirebaseData(double temp1, double temp2, double humidity1, double hum
 
 void loop() {
     unsigned long currentMillis = millis();
+  
+     if (BTSerial.available()) {
+        String receivedData = BTSerial.readStringUntil('\n'); // Read data till newline
+        receivedData.trim(); // Remove any extra spaces or newlines
+
+        Serial.println("Received: " + receivedData);
+
+        // Parse received data (Format: "temperature,humidity,movement")
+        int firstComma = receivedData.indexOf(',');
+        int secondComma = receivedData.indexOf(',', firstComma + 1);
+
+        if (firstComma != -1 && secondComma != -1) {
+            // Extract temperature
+            String tempStr = receivedData.substring(0, firstComma);
+            temp2 = tempStr.toFloat();
+
+            // Extract humidity
+            String humidityStr = receivedData.substring(firstComma + 1, secondComma);
+            humidity2 = humidityStr.toFloat();
+
+            // Extract movement type
+            movement = receivedData.substring(secondComma + 1);
+
+            // Print parsed values
+            Serial.println("Temperature: " + String(temp2) + "°C");
+            Serial.println("Humidity: " + String(humidity2) + "%");
+            Serial.println("Movement: " + movement);
+        }
+    
     if (currentMillis - lastWifiCheck >= WIFI_CHECK_INTERVAL) {
         updateWiFiLED();
         
@@ -281,18 +322,10 @@ void loop() {
 
     double temp1 = dht1.readTemperature();
     double humidity1 = dht1.readHumidity();
-    double temp2 = dht2.readTemperature();
-    double humidity2 = dht2.readHumidity();
-    
-    int distance1 = sensor1.ping_cm();
-    int distance2 = sensor2.ping_cm();
-
-    if (distance1 < THRESHOLD) s1Triggered = true;
-    if (distance2 < THRESHOLD) s2Triggered = true;
-
-    if (s1Triggered) {
-        delay(10);
-        if (sensor2.ping_cm() < THRESHOLD) {
+   
+   
+    if (movement=="IN") {
+       
             lcd.clear();
             lcd.setCursor(0, 1);
             lcd.print("   Person IN");
@@ -300,12 +333,11 @@ void loop() {
             currentCount++;
             resetStates();
             singleBeep();
-        }
+        
     }
 
-    if (s2Triggered) {
-        delay(10);
-        if (sensor1.ping_cm() < THRESHOLD) {
+    if (movement=="OUT") {
+       
             lcd.clear();
             lcd.setCursor(0, 1);
             lcd.print("   Person OUT");
@@ -313,7 +345,7 @@ void loop() {
             if (currentCount > 0) currentCount--;
             resetStates();
             doubleBeep();
-        }
+        
     }
 
     if (currentCount != lastCount) {
@@ -373,5 +405,5 @@ void loop() {
         for (int i = 0; i < 2; i++) {
             doubleBeep();
         }
-    }
+    }}
 }

@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <IRremoteESP8266.h>
 #include <IRsend.h>
-#include <ir_Mitsubishi.h>
+#include <ir_Carrier.h>
 #include "DHT.h"
 #include <WiFi.h>
 #include <Firebase_ESP_Client.h>
@@ -9,7 +9,6 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <NewPing.h>
-
 // Pin and Wi-Fi settings
 #define TRIG_PIN1 5
 #define ECHO_PIN1 4
@@ -40,7 +39,7 @@ DHT dht1(DHTPIN1, DHTTYPE);
 DHT dht2(DHTPIN2, DHTTYPE);
 
 const uint16_t kIrLed = 23;
-IRMitsubishiAC ac(kIrLed);
+IRCarrierAc64 ac(kIrLed);  // Changed to Carrier AC
 
 // Firebase objects
 FirebaseData fbdo;
@@ -327,19 +326,20 @@ void loop() {
             ac.setTemp(acTemp);
             ac.send();
         }
-#if SEND_MITSUBISHI_AC
+#if SEND_CARRIER_AC64
         ac.send();
 #endif  
         updateFirebaseData(temp1, temp2, humidity1, humidity2, indoorTemp, outdoorTemp, acTemp);
     }
 
     if (currentCount > 0 && !updatedToOne) {
-        ac.on();
-        ac.setFan(1);
-        ac.setMode(kMitsubishiAcCool);
+          ac.on();
+        ac.setFan(kCarrierAc64FanAuto);
+        ac.setMode(kCarrierAc64Cool);
         ac.setTemp(acTemp);
-        ac.setVane(kMitsubishiAcVaneAuto);
-#if SEND_MITSUBISHI_AC
+        ac.send();
+        
+#if SEND_CARRIER_AC64
         ac.send();
 #endif 
         updatedToOne = true;
@@ -352,7 +352,8 @@ void loop() {
 
     if (currentCount == 0 && !updatedToZero) {
         ac.off();
-#if SEND_MITSUBISHI_AC
+        ac.send();
+#if SEND_CARRIER_AC64
         ac.send();
 #endif 
         updatedToZero = true;
